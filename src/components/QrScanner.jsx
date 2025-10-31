@@ -11,21 +11,29 @@ const QrScanner = ({ onScanSuccess }) => {
     html5QrCodeRef.current = html5QrCode;
 
     const config = {
-      fps: 15, // process 15 frames per second
-      qrbox: { width: 300, height: 300 }, // scanning region
-      aspectRatio: 1.0,
+      fps: 15,
+      qrbox: { width: 300, height: 300 },
     };
 
     const startScanner = async () => {
       try {
         const devices = await Html5Qrcode.getCameras();
 
-        if (!devices || !devices.length) {
+        if (!devices || devices.length === 0) {
           alert("❌ No camera found on this device.");
           return;
         }
 
-        const cameraId = devices[0].id; // back camera (or first available)
+        // 🪄 Try to find the back camera
+        let backCamera = devices.find(
+          (device) =>
+            device.label.toLowerCase().includes("back") ||
+            device.label.toLowerCase().includes("rear")
+        );
+
+        const cameraId = backCamera ? backCamera.id : devices[0].id;
+
+        console.log("🎥 Using camera:", backCamera ? "Back" : "Front");
 
         await html5QrCode.start(
           cameraId,
@@ -34,25 +42,22 @@ const QrScanner = ({ onScanSuccess }) => {
             console.log("✅ QR Code detected:", decodedText);
             onScanSuccess(decodedText);
 
-            // Stop scanning automatically after detection
-            html5QrCode.stop().then(() => {
-              html5QrCode.clear();
-            });
+            // Stop scanning after successful detection
+            html5QrCode.stop().then(() => html5QrCode.clear());
           },
           (error) => {
-            // Continuous detection errors happen often — safe to ignore
-            // console.warn("Scan error:", error);
+            // Continuous errors — safe to ignore
           }
         );
       } catch (err) {
-        console.error("Failed to start scanning:", err);
+        console.error("Camera start failed:", err);
         alert("Camera access failed. Please allow camera permissions.");
       }
     };
 
     startScanner();
 
-    // Cleanup on unmount
+    // Cleanup
     return () => {
       if (html5QrCodeRef.current) {
         html5QrCodeRef.current
