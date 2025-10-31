@@ -7,6 +7,7 @@ import UserListing from './components/UserListing/Index'
 import { useSelector } from 'react-redux'
  
 import QrCodeScanner from './components/QrScanner'
+import QRScanner from './components/QrScanner'
 
 function App() {
   const [showListing, setShowListing] = useState(false)
@@ -25,7 +26,7 @@ function App() {
         </div>
       </div> */}
    
-      <QrCodeScanner/>
+       <QRScanner/>
 
 
     </>
