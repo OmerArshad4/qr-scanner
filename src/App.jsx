@@ -1,37 +1,40 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import SignupForm from './components/Forms/SignUpForm'
-import UserListing from './components/UserListing/Index'
-import { useSelector } from 'react-redux'
- 
-import QrCodeScanner from './components/QrScanner'
-import QRScanner from './components/QrScanner'
+// src/App.jsx
+import React, { useState } from "react";
+import QrScanner from "./components/QrScanner";
 
 function App() {
-  const [showListing, setShowListing] = useState(false)
-  const { user } = useSelector((state) => state.user);
+  const [scannedData, setScannedData] = useState("");
+
+  // When QR is successfully scanned
+  const handleScanSuccess = (decodedText) => {
+    console.log("Scanned result:", decodedText);
+    setScannedData(decodedText);
+  };
+
+  // Optional: When scan fails (e.g. not detected)
+  const handleScanFailure = (error) => {
+    // console.warn("Scan failed:", error);
+  };
+
   return (
-    <>
-    <h2>hello</h2>
-      {/* <div className='bg-amber-950 h-screen w-screen'>
-        <div className="flex flex-col justify-center items-center h-full gap-6">
-          {showListing ? (
-            <SignupForm setShowListing={setShowListing} />
-          ) : (
-            user && <UserListing setShowListing={setShowListing} />
-          )}
-          {!user && <SignupForm setShowListing={setShowListing} />}
-        </div>
-      </div> */}
-   
-       <QRScanner/>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+      <h1 className="text-2xl font-semibold mb-4">QR Code Scanner</h1>
 
+      {/* QR Scanner component */}
+      <QrScanner
+        onScanSuccess={handleScanSuccess}
+        onScanFailure={handleScanFailure}
+      />
 
-    </>
-
-  )
+      {/* Show scanned result */}
+      {scannedData && (
+        <p className="mt-6 text-green-600 font-medium">
+          ✅ Scanned Data: {scannedData}
+        </p>
+      )}
+    </div>
+  );
 }
+ 
 
-export default App
+export default App;
