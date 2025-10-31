@@ -1,72 +1,97 @@
 // src/components/QrScanner.jsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 
 const QrScanner = ({ onScanSuccess }) => {
   const qrRegionId = "html5qr-code-region";
   const html5QrCodeRef = useRef(null);
+  const [cameras, setCameras] = useState([]);
+  const [currentCamera, setCurrentCamera] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
     const html5QrCode = new Html5Qrcode(qrRegionId);
     html5QrCodeRef.current = html5QrCode;
 
-    const config = {
-      fps: 15,
-      qrbox: { width: 300, height: 300 },
-    };
+    const config = { fps: 15, qrbox: { width: 300, height: 300 } };
 
-    const startScanner = async () => {
+    const initCameras = async () => {
       try {
         const devices = await Html5Qrcode.getCameras();
-
         if (!devices || devices.length === 0) {
           alert("❌ No camera found on this device.");
           return;
         }
+        setCameras(devices);
 
-        // 🪄 Try to find the back camera
-        let backCamera = devices.find(
-          (device) =>
-            device.label.toLowerCase().includes("back") ||
-            device.label.toLowerCase().includes("rear")
-        );
+        // Auto-select back camera if available
+        let backCam =
+          devices.find((d) =>
+            d.label.toLowerCase().includes("back")
+          ) || devices[0];
 
-        const cameraId = backCamera ? backCamera.id : devices[0].id;
-
-        console.log("🎥 Using camera:", backCamera ? "Back" : "Front");
-
-        await html5QrCode.start(
-          cameraId,
-          config,
-          (decodedText) => {
-            console.log("✅ QR Code detected:", decodedText);
-            onScanSuccess(decodedText);
-
-            // Stop scanning after successful detection
-            html5QrCode.stop().then(() => html5QrCode.clear());
-          },
-          (error) => {
-            // Continuous errors — safe to ignore
-          }
-        );
+        setCurrentCamera(backCam.id);
       } catch (err) {
-        console.error("Camera start failed:", err);
-        alert("Camera access failed. Please allow camera permissions.");
+        console.error("Camera init failed:", err);
+        alert("Failed to access camera. Allow permissions and reload.");
       }
     };
 
-    startScanner();
+    initCameras();
 
-    // Cleanup
     return () => {
-      if (html5QrCodeRef.current) {
-        html5QrCodeRef.current
-          .stop()
-          .then(() => html5QrCodeRef.current.clear())
-          .catch(() => {});
-      }
+      stopScanner();
     };
-  }, [onScanSuccess]);
+    // eslint-disable-next-line
+  }, []);
+
+  const startScanner = async (cameraId) => {
+    if (!cameraId) return;
+    const html5QrCode = html5QrCodeRef.current;
+
+    try {
+      await html5QrCode.start(
+        cameraId,
+        { fps: 15, qrbox: { width: 300, height: 300 } },
+        (decodedText) => {
+          console.log("✅ QR Code:", decodedText);
+          onScanSuccess(decodedText);
+          stopScanner();
+        },
+        (error) => {}
+      );
+      setIsScanning(true);
+    } catch (err) {
+      console.error("Start failed:", err);
+    }
+  };
+
+  const stopScanner = async () => {
+    const html5QrCode = html5QrCodeRef.current;
+    if (isScanning && html5QrCode) {
+      await html5QrCode.stop().catch(() => {});
+      await html5QrCode.clear().catch(() => {});
+    }
+    setIsScanning(false);
+  };
+
+  const toggleCamera = async () => {
+    if (cameras.length < 2) return alert("Only one camera available.");
+
+    await stopScanner();
+
+    const currentIndex = cameras.findIndex((c) => c.id === currentCamera);
+    const nextIndex = (currentIndex + 1) % cameras.length;
+    const nextCamera = cameras[nextIndex];
+
+    setCurrentCamera(nextCamera.id);
+    startScanner(nextCamera.id);
+  };
+
+  useEffect(() => {
+    if (currentCamera) startScanner(currentCamera);
+    // eslint-disable-next-line
+  }, [currentCamera]);
 
   return (
     <div className="flex flex-col items-center justify-center">
@@ -81,7 +106,18 @@ const QrScanner = ({ onScanSuccess }) => {
           boxShadow: "0 0 20px rgba(0,0,0,0.1)",
         }}
       ></div>
-      <p className="text-gray-500 mt-3 text-sm">Align QR code inside the box</p>
+
+      <div className="flex items-center gap-3 mt-3">
+        <p className="text-gray-500 text-sm">Align QR code inside the box</p>
+        {cameras.length > 1 && (
+          <button
+            onClick={toggleCamera}
+            className="bg-gray-700 text-white text-sm px-3 py-1 rounded hover:bg-gray-800 transition"
+          >
+            🔁 Switch Camera
+          </button>
+        )}
+      </div>
     </div>
   );
 };
